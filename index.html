@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Customer Khata History System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Input Form Section -->
+        <div class="form-section">
+            <h2>📖 Smart Khata Ledger</h2>
+            
+            <div class="input-group">
+                <label>Customer Name</label>
+                <input type="text" id="customer-name" placeholder="e.g., Arooj" oninput="loadCustomerHistory()">
+            </div>
+
+            <!-- Full History Display Box -->
+            <div id="history-container" class="history-box">
+                <p style="color: #94a3b8;">Type customer name to view previous history...</p>
+            </div>
+
+            <hr style="border-color: #334155; margin: 15px 0;">
+
+            <h3>Add Today's Items</h3>
+            <div class="input-group">
+                <label>Item Name</label>
+                <input type="text" id="item-name" placeholder="e.g., Book, Pencil">
+            </div>
+
+            <div class="input-group">
+                <label>Price (Each)</label>
+                <input type="number" id="item-price" placeholder="0">
+            </div>
+
+            <div class="input-group">
+                <label>Quantity</label>
+                <input type="number" id="item-qty" value="1" min="1">
+            </div>
+
+            <button id="add-item-btn" onclick="addItemToCurrentCart()">Add to Current Bill</button>
+
+            <div class="input-group" style="margin-top: 20px;">
+                <label>Amount Paid Today (Cash Given)</label>
+                <input type="number" id="amount-paid" placeholder="0">
+            </div>
+
+            <button id="save-khata-btn" onclick="saveTransaction()">Save Today's Transaction</button>
+            <button id="reset-khata-btn" onclick="resetCustomerKhata()">Reset / Start New Khata</button>
+        </div>
+
+        <!-- Receipt / Preview Section -->
+        <div class="receipt-section" id="receipt-box">
+            <div class="receipt-header">
+                <h3>CUSTOMER BILL STATEMENT</h3>
+                <p>Date: <span id="receipt-date"></span></p>
+            </div>
+
+            <div class="receipt-customer">
+                <p><strong>Customer:</strong> <span id="bill-customer-name">---</span></p>
+            </div>
+
+            <table class="receipt-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="receipt-items">
+                    <!-- Today's items will show here -->
+                </tbody>
+            </table>
+
+            <div class="receipt-summary">
+                <p>Previous Baqaya: Rs <span id="bill-prev-balance">0.00</span></p>
+                <p>Today's Items Total: Rs <span id="current-items-total">0.00</span></p>
+                <h3>Total Payable: Rs <span id="total-payable">0.00</span></h3>
+                <p>Amount Paid Today: Rs <span id="bill-amount-paid">0.00</span></p>
+                <h2 style="color: #ef4444; margin-top: 10px;">New Remaining (Baqaya): Rs <span id="final-remaining">0.00</span></h2>
+            </div>
+
+            <button id="print-btn" onclick="window.print()">Print / Save PDF</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
