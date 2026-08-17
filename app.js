@@ -16,16 +16,13 @@ const receiptDate = document.getElementById('receipt-date');
 
 receiptDate.innerText = new Date().toLocaleDateString();
 
-// Today's current cart items
 let currentCart = [];
 
-// Get database from localStorage
 function getFullKhataDB() {
     let db = localStorage.getItem('fullKhataDatabase');
     return db ? JSON.parse(db) : {};
 }
 
-// Load customer history when name is typed
 function loadCustomerHistory() {
     let name = customerInput.value.trim().toLowerCase();
     if (name === "") {
@@ -35,12 +32,20 @@ function loadCustomerHistory() {
     }
 
     let db = getFullKhataDB();
-    let customerData = db[name]; // Contains transactions array
+    let customerData = db[name];
 
     if (!customerData || customerData.transactions.length === 0) {
-        historyContainer.innerHTML = `<p style="color: #facc15;">No previous record found for this customer. New account will be created.</p>`;
+        historyContainer.innerHTML = `<p style="color: #facc15;">No previous record found. New account will be created.</p>`;
     } else {
-        let html = `<strong>Previous History:</strong><br>`;
+        let lastTxn = customerData.transactions[customerData.transactions.length - 1];
+        let hasRemaining = parseFloat(lastTxn.remainingBalance) > 0;
+
+        let statusBadge = hasRemaining 
+            ? `<span style="color: #ef4444; font-weight: bold; float: right;">🔴 Remaining: Rs ${lastTxn.remainingBalance}</span>` 
+            : `<span style="color: #22c55e; font-weight: bold; float: right;">🟢 Clear / Paid</span>`;
+
+        let html = `<strong>Previous History:</strong> ${statusBadge}<br><hr style="border-color: #334155; margin: 8px 0;">`;
+        
         customerData.transactions.forEach((txn) => {
             html += `
                 <div class="history-record">
@@ -56,7 +61,6 @@ function loadCustomerHistory() {
     updateCurrentBillPreview();
 }
 
-// Add item to today's cart
 function addItemToCurrentCart() {
     let name = itemNameInput.value.trim();
     let price = parseFloat(itemPriceInput.value);
@@ -76,7 +80,6 @@ function addItemToCurrentCart() {
     itemNameInput.focus();
 }
 
-// Update bill calculations and tables
 function updateCurrentBillPreview() {
     let customerName = customerInput.value.trim();
     billCustomerName.innerText = customerName === "" ? "---" : customerName;
@@ -84,11 +87,10 @@ function updateCurrentBillPreview() {
     let db = getFullKhataDB();
     let lowerName = customerName.toLowerCase();
     
-    // Calculate previous balance from last transaction or default to 0
     let prevBalance = 0;
     if (db[lowerName] && db[lowerName].transactions.length > 0) {
         let lastTxn = db[lowerName].transactions[db[lowerName].transactions.length - 1];
-        prevBalance = lastTxn.remainingBalance;
+        prevBalance = parseFloat(lastTxn.remainingBalance) || 0;
     }
 
     billPrevBalanceSpan.innerText = prevBalance.toFixed(2);
@@ -123,19 +125,16 @@ function updateCurrentBillPreview() {
     finalRemainingSpan.innerText = finalRemaining.toFixed(2);
 }
 
-// Delete item from today's cart
 function deleteCartItem(index) {
     currentCart.splice(index, 1);
     updateCurrentBillPreview();
 }
 
-// Clear preview when no name
 function clearCurrentBill() {
     currentCart = [];
     updateCurrentBillPreview();
 }
 
-// Save today's transaction into permanent history database
 function saveTransaction() {
     let customerName = customerInput.value.trim();
     if (customerName === "") {
@@ -145,7 +144,6 @@ function saveTransaction() {
 
     let paid = parseFloat(amountPaidInput.value) || 0;
 
-    // Check if both cart is empty and no payment is made
     if (currentCart.length === 0 && paid === 0) {
         alert("Please add items or enter payment amount!");
         return;
@@ -160,57 +158,105 @@ function saveTransaction() {
 
     let prevBalance = 0;
     if (db[lowerName].transactions.length > 0) {
-        prevBalance = db[lowerName].transactions[db[lowerName].transactions.length - 1].remainingBalance;
+        prevBalance = parseFloat(db[lowerName].transactions[db[lowerName].transactions.length - 1].remainingBalance) || 0;
     }
 
     let currentTotal = currentCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
     let payable = currentTotal + prevBalance;
     let remaining = payable - paid;
 
-    // Create summary string of items taken today or payment only
     let itemsSummary = currentCart.length > 0 
         ? currentCart.map(i => `${i.qty}x ${i.name} (Rs ${i.price * i.qty})`).join(', ') 
         : "Bill Payment Only (Khata Clear)";
 
-    // Push new transaction object
     let newTxn = {
         date: new Date().toLocaleDateString(),
+        timestamp: new Date().getTime(),
+        customerName: customerName,
         itemsSummary: itemsSummary,
         totalBill: payable.toFixed(2),
         paid: paid.toFixed(2),
         remainingBalance: remaining
     };
 
+    // 1. Save to active customer ledger
     db[lowerName].transactions.push(newTxn);
-    localStorage.setItem('fullKhataDatabase', JSON.stringify(db));
 
-    alert(`Transaction saved successfully for ${customerName}! New Remaining: Rs ${remaining.toFixed(2)}`);
+    // 2. Save to permanent Sales Archive for Monthly Reports
+    let salesArchive = localStorage.getItem('salesArchiveDB');
+    salesArchive = salesArchive ? JSON.parse(salesArchive) : [];
+    salesArchive.push(newTxn);
+    localStorage.setItem('salesArchiveDB', JSON.stringify(salesArchive));
+
+    // 3. Auto delete/reset active customer account if remaining balance is 0 or less
+    if (remaining <= 0) {
+        delete db[lowerName];
+        localStorage.setItem('fullKhataDatabase', JSON.stringify(db));
+        alert(`Transaction saved! Bill fully cleared. Account for ${customerName} has been automatically reset.`);
+    } else {
+        localStorage.setItem('fullKhataDatabase', JSON.stringify(db));
+        alert(`Transaction saved successfully! Remaining Balance: Rs ${remaining.toFixed(2)}`);
+    }
     
-    // Reset current cart and inputs
     currentCart = [];
     amountPaidInput.value = "";
     loadCustomerHistory();
 }
 
-// Reset / Clear Customer Khata history
-function resetCustomerKhata() {
-    let customerName = customerInput.value.trim();
-    if (customerName === "") {
-        alert("Please enter a customer name first!");
-        return;
-    }
+// Monthly Report Logic using Sales Archive (Updated with Remaining Balance display)
+function showMonthlyReport() {
+    let salesArchive = localStorage.getItem('salesArchiveDB');
+    salesArchive = salesArchive ? JSON.parse(salesArchive) : [];
 
-    if (confirm(`Are you sure you want to clear ALL history for ${customerName}?`)) {
-        let db = getFullKhataDB();
-        let lowerName = customerName.toLowerCase();
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth(); 
+    let currentYear = currentDate.getFullYear();
+
+    let totalSalesThisMonth = 0;
+    let totalCashCollectedThisMonth = 0;
+    let transactionCount = 0;
+    let reportHtml = "";
+
+    salesArchive.forEach(txn => {
+        let txnDate = txn.timestamp ? new Date(txn.timestamp) : new Date();
         
-        delete db[lowerName];
-        localStorage.setItem('fullKhataDatabase', JSON.stringify(db));
-        
-        alert("Khata has been reset successfully!");
-        loadCustomerHistory();
-    }
+        if (txnDate.getMonth() === currentMonth && txnDate.getFullYear() === currentYear) {
+            totalSalesThisMonth += parseFloat(txn.totalBill) || 0;
+            totalCashCollectedThisMonth += parseFloat(txn.paid) || 0;
+            transactionCount++;
+
+            let remainingVal = parseFloat(txn.remainingBalance) || 0;
+            let remainingBadge = remainingVal > 0 
+                ? `<span style="color: #ef4444;">Remaining: Rs ${remainingVal.toFixed(2)} 🔴</span>` 
+                : `<span style="color: #22c55e;">Cleared 🟢</span>`;
+
+            reportHtml += `
+                <div style="border-bottom:1px dashed #334155; padding:8px 0;">
+                    <small style="color:#38bdf8;">${txn.date} - Customer: <b>${txn.customerName}</b></small><br>
+                    Bill: Rs ${txn.totalBill} | Paid: Rs ${txn.paid} | ${remainingBadge}
+                </div>
+            `;
+        }
+    });
+
+    let summaryBox = `
+        <div style="background:#0f172a; padding:15px; border-radius:8px; margin-bottom:15px;">
+            <p><strong>Total Transactions:</strong> ${transactionCount}</p>
+            <p><strong>Total Cumulative Sales:</strong> Rs ${totalSalesThisMonth.toFixed(2)}</p>
+            <p><strong>Total Cash Collected:</strong> Rs ${totalCashCollectedThisMonth.toFixed(2)}</p>
+        </div>
+        <h4>All Transactions This Month:</h4>
+        <div style="max-height:200px; overflow-y:auto; margin-top:10px;">
+            ${reportHtml === "" ? "<p style='color:#94a3b8;'>No transactions recorded for this month yet.</p>" : reportHtml}
+        </div>
+    `;
+
+    document.getElementById('report-content').innerHTML = summaryBox;
+    document.getElementById('report-modal').style.display = 'flex';
 }
 
-// Listen to amount paid changes for live preview update
+function closeMonthlyReport() {
+    document.getElementById('report-modal').style.display = 'none';
+}
+
 amountPaidInput.addEventListener('input', updateCurrentBillPreview);
