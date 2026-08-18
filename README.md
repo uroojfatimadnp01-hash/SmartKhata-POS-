@@ -4,6 +4,9 @@ A modern, responsive, and user-friendly web application designed for small shopk
 
 ---
 
+## Live Demo 
+https://uroojfatimadnp01-hash.github.io/SmartKhata-POS-/
+
 ## 🚀 Features
 
 * **Full Customer History Tracking:** Automatically loads and displays a customer's past purchases, total bills, and payment records when their name is entered.
