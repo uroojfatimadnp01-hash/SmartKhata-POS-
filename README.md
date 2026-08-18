@@ -27,15 +27,6 @@ https://uroojfatimadnp01-hash.github.io/SmartKhata-POS-/
 
 ---
 
-## 📁 Project Structure
-
-```text
-├── index.html       # Main UI structure
-├── style.css        # Styling and responsive design
-└── app.js           # Core application logic and local storage management
-
-
-
 ## 👩‍💻 Author
 **Urooj Fatima**
 * GitHub: [@uroojfatimadnp01-hash](https://github.com/uroojfatimadnp01-hash)
